@@ -51,7 +51,7 @@ func Parse(spec string) (_ Schedule, err error) {
 		Dom:    getField(fields[3], dom),
 		Month:  getField(fields[4], months),
 		Dow:    getField(fields[5], dow),
-		Woy:    getField(fields[6], weeksOfYear),
+		Wy:    getField(fields[6], weeksOfYear),
 	}
 
 	return schedule, nil
@@ -180,7 +180,7 @@ func parseDescriptor(spec string) Schedule {
 			Dom:    1 << dom.min,
 			Month:  1 << months.min,
 			Dow:    all(dow),
-			Woy:    all(weeksOfYear),
+			Wy:    all(weeksOfYear),
 		}
 
 	case "@monthly":
@@ -191,7 +191,7 @@ func parseDescriptor(spec string) Schedule {
 			Dom:    1 << dom.min,
 			Month:  all(months),
 			Dow:    all(dow),
-			Woy:    all(weeksOfYear),
+			Wy:    all(weeksOfYear),
 		}
 
 	case "@weekly":
@@ -202,7 +202,7 @@ func parseDescriptor(spec string) Schedule {
 			Dom:    all(dom),
 			Month:  all(months),
 			Dow:    1 << dow.min,
-			Woy:    all(weeksOfYear),
+			Wy:    all(weeksOfYear),
 		}
 
 	case "@daily", "@midnight":
@@ -213,7 +213,7 @@ func parseDescriptor(spec string) Schedule {
 			Dom:    all(dom),
 			Month:  all(months),
 			Dow:    all(dow),
-			Woy:    all(weeksOfYear),
+			Wy:    all(weeksOfYear),
 		}
 
 	case "@hourly":
@@ -224,7 +224,7 @@ func parseDescriptor(spec string) Schedule {
 			Dom:    all(dom),
 			Month:  all(months),
 			Dow:    all(dow),
-			Woy:    all(weeksOfYear),
+			Wy:    all(weeksOfYear),
 		}
 	}
 

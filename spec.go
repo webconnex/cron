@@ -5,7 +5,7 @@ import "time"
 // SpecSchedule specifies a duty cycle (to the second granularity), based on a
 // traditional crontab specification. It is computed initially and stored as bit sets.
 type SpecSchedule struct {
-	Second, Minute, Hour, Dom, Month, Dow, Woy uint64
+	Second, Minute, Hour, Dom, Month, Dow, Wy uint64
 }
 
 // bounds provides a range of acceptable values (plus a map of name to value).
@@ -152,7 +152,7 @@ func dayMatches(s *SpecSchedule, t time.Time) bool {
 	var (
 		domMatch bool = 1<<uint(t.Day())&s.Dom > 0
 		dowMatch bool = 1<<uint(t.Weekday())&s.Dow > 0
-		woyMatch bool = 1<<uint(wy)&s.Woy > 0
+		woyMatch bool = 1<<uint(wy)&s.Wy > 0
 	)
 
 	if s.Dom&starBit > 0 || s.Dow&starBit > 0 {
