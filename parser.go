@@ -27,15 +27,20 @@ func Parse(spec string) (_ Schedule, err error) {
 		return parseDescriptor(spec), nil
 	}
 
-	// Split on whitespace.  We require 5 or 6 fields.
+	// Split on whitespace.  We require 5 to 7 fields.
 	// (second) (minute) (hour) (day of month) (month) (day of week, optional)
 	fields := strings.Fields(spec)
-	if len(fields) != 5 && len(fields) != 6 {
-		log.Panicf("Expected 5 or 6 fields, found %d: %s", len(fields), spec)
+	if len(fields) < 6 && len(fields) > 7 {
+		log.Panicf("Expected 5 to 7 fields, found %d: %s", len(fields), spec)
 	}
 
-	// If a sixth field is not provided (DayOfWeek), then it is equivalent to star.
+	// If a sixth field is not provided (Dow), then it is equivalent to star.
 	if len(fields) == 5 {
+		fields = append(fields, "*")
+	}
+
+	// If a seventh field is not provided (WeekYear), then it is equivalent to star.
+	if len(fields) == 6 {
 		fields = append(fields, "*")
 	}
 
@@ -46,6 +51,7 @@ func Parse(spec string) (_ Schedule, err error) {
 		Dom:    getField(fields[3], dom),
 		Month:  getField(fields[4], months),
 		Dow:    getField(fields[5], dow),
+		Woy:    getField(fields[6], weeksOfYear),
 	}
 
 	return schedule, nil
@@ -174,6 +180,7 @@ func parseDescriptor(spec string) Schedule {
 			Dom:    1 << dom.min,
 			Month:  1 << months.min,
 			Dow:    all(dow),
+			Woy:    all(weeksOfYear),
 		}
 
 	case "@monthly":
@@ -184,6 +191,7 @@ func parseDescriptor(spec string) Schedule {
 			Dom:    1 << dom.min,
 			Month:  all(months),
 			Dow:    all(dow),
+			Woy:    all(weeksOfYear),
 		}
 
 	case "@weekly":
@@ -194,6 +202,7 @@ func parseDescriptor(spec string) Schedule {
 			Dom:    all(dom),
 			Month:  all(months),
 			Dow:    1 << dow.min,
+			Woy:    all(weeksOfYear),
 		}
 
 	case "@daily", "@midnight":
@@ -204,6 +213,7 @@ func parseDescriptor(spec string) Schedule {
 			Dom:    all(dom),
 			Month:  all(months),
 			Dow:    all(dow),
+			Woy:    all(weeksOfYear),
 		}
 
 	case "@hourly":
@@ -214,6 +224,7 @@ func parseDescriptor(spec string) Schedule {
 			Dom:    all(dom),
 			Month:  all(months),
 			Dow:    all(dow),
+			Woy:    all(weeksOfYear),
 		}
 	}
 
