@@ -6,7 +6,6 @@ import "time"
 // traditional crontab specification. It is computed initially and stored as bit sets.
 type SpecSchedule struct {
 	Second, Minute, Hour, Dom, Month, Dow uint64
-	Iterations                            int
 }
 
 // bounds provides a range of acceptable values (plus a map of name to value).
@@ -54,13 +53,6 @@ const (
 // Next returns the next time this schedule is activated, greater than the given
 // time.  If no time can be found to satisfy the schedule, return the zero time.
 func (s *SpecSchedule) Next(t time.Time) time.Time {
-	for i := 0; i < s.Iterations; i++ {
-		t = s.nextTime(t)
-	}
-	return t
-}
-
-func (s *SpecSchedule) nextTime(t time.Time) time.Time {
 	// General approach:
 	// For Month, Day, Hour, Minute, Second:
 	// Check if the time value matches.  If yes, continue to the next field.

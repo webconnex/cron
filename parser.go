@@ -30,8 +30,8 @@ func Parse(spec string) (_ Schedule, err error) {
 	// Split on whitespace.  We require 5 or 6 fields.
 	// (second) (minute) (hour) (day of month) (month) (day of week, optional)
 	fields := strings.Fields(spec)
-	if len(fields) < 5 && len(fields) > 7 {
-		log.Panicf("Invalid number of fields fields, found %d: %s", len(fields), spec)
+	if len(fields) != 5 && len(fields) != 6 {
+		log.Panicf("Expected 5 or 6 fields, found %d: %s", len(fields), spec)
 	}
 
 	// If a sixth field is not provided (DayOfWeek), then it is equivalent to star.
@@ -39,22 +39,13 @@ func Parse(spec string) (_ Schedule, err error) {
 		fields = append(fields, "*")
 	}
 
-	var iterations int = 1
-	if len(fields) == 7 {
-		iterations, err = strconv.Atoi(fields[6])
-		if err != nil {
-			return
-		}
-	}
-
 	schedule := &SpecSchedule{
-		Second:     getField(fields[0], seconds),
-		Minute:     getField(fields[1], minutes),
-		Hour:       getField(fields[2], hours),
-		Dom:        getField(fields[3], dom),
-		Month:      getField(fields[4], months),
-		Dow:        getField(fields[5], dow),
-		Iterations: iterations,
+		Second: getField(fields[0], seconds),
+		Minute: getField(fields[1], minutes),
+		Hour:   getField(fields[2], hours),
+		Dom:    getField(fields[3], dom),
+		Month:  getField(fields[4], months),
+		Dow:    getField(fields[5], dow),
 	}
 
 	return schedule, nil
