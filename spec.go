@@ -5,7 +5,7 @@ import "time"
 // SpecSchedule specifies a duty cycle (to the second granularity), based on a
 // traditional crontab specification. It is computed initially and stored as bit sets.
 type SpecSchedule struct {
-	Second, Minute, Hour, Dom, Month, Dow uint64
+	Second, Minute, Hour, Dom, Month, Dow, Wy uint64
 }
 
 type feature uint
@@ -51,6 +51,7 @@ var (
 		"fri": 5,
 		"sat": 6,
 	}}
+	weeksOfYear = bounds{1, 53, 0, nil}
 )
 
 const (
@@ -153,14 +154,16 @@ WRAP:
 	return t
 }
 
-// dayMatches returns true if the schedule's day-of-week and day-of-month
-// restrictions are satisfied by the given time.
+// dayMatches returns true if the schedule's day-of-week, day-of-month and
+// week-of-year restrictions are satisfied by the given time.
 func dayMatches(s *SpecSchedule, t time.Time) bool {
 	var (
 		dom      = t.Day()
 		dow      = t.Weekday()
+		_, wy    = t.ISOWeek()
 		domMatch = 1<<uint(dom)&s.Dom > 0
 		dowMatch = 1<<uint(dow)&s.Dow > 0
+		woyMatch = 1<<uint(wy)&s.Wy > 0
 	)
 	if !domMatch && dom >= 28 && s.Dom&approxBit > 0 {
 		if ldom := lastDay(t); ldom < 31 && ldom == dom {
@@ -168,9 +171,9 @@ func dayMatches(s *SpecSchedule, t time.Time) bool {
 		}
 	}
 	if s.Dom&starBit > 0 || s.Dow&starBit > 0 {
-		return domMatch && dowMatch
+		return domMatch && dowMatch && woyMatch
 	}
-	return domMatch || dowMatch
+	return domMatch || (dowMatch && woyMatch)
 }
 
 func lastDay(t time.Time) int {

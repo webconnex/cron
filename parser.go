@@ -18,7 +18,9 @@ const (
 	Dom
 	Month
 	Dow
-	DowOptinal
+	DowOptional
+	Wy
+	WyOptional
 	Descriptor
 	ApproxDom
 )
@@ -30,12 +32,14 @@ var places = []ParseOption{
 	Dom,
 	Month,
 	Dow,
+	Wy,
 }
 
 var defaults = []string{
 	"0",
 	"0",
 	"0",
+	"*",
 	"*",
 	"*",
 	"*",
@@ -48,8 +52,12 @@ type Parser struct {
 
 func NewParser(options ParseOption) Parser {
 	optionals := 0
-	if options&DowOptinal > 0 {
+	if options&DowOptional > 0 {
 		options |= Dow
+		optionals++
+	}
+	if options&WyOptional > 0 {
+		options |= Wy
 		optionals++
 	}
 	return Parser{options, optionals}
@@ -98,6 +106,7 @@ func (p Parser) Parse(spec string) (_ Schedule, err error) {
 		Dom:    getField(fields[3], dom),
 		Month:  getField(fields[4], months),
 		Dow:    getField(fields[5], dow),
+		Wy:     getField(fields[6], weeksOfYear),
 	}
 
 	if p.options&ApproxDom > 0 {
@@ -125,7 +134,7 @@ func expandFields(fields []string, options ParseOption) []string {
 }
 
 var defaultParser = NewParser(
-	Second | Minute | Hour | Dom | Month | DowOptinal | Descriptor,
+	Second | Minute | Hour | Dom | Month | DowOptional | Descriptor,
 )
 
 // Parse returns a new crontab schedule representing the given spec.
@@ -270,6 +279,7 @@ func parseDescriptor(spec string) Schedule {
 			Dom:    1 << dom.min,
 			Month:  1 << months.min,
 			Dow:    all(dow),
+			Wy:     all(weeksOfYear),
 		}
 
 	case "@monthly":
@@ -280,6 +290,7 @@ func parseDescriptor(spec string) Schedule {
 			Dom:    1 << dom.min,
 			Month:  all(months),
 			Dow:    all(dow),
+			Wy:     all(weeksOfYear),
 		}
 
 	case "@weekly":
@@ -290,6 +301,7 @@ func parseDescriptor(spec string) Schedule {
 			Dom:    all(dom),
 			Month:  all(months),
 			Dow:    1 << dow.min,
+			Wy:     all(weeksOfYear),
 		}
 
 	case "@daily", "@midnight":
@@ -300,6 +312,7 @@ func parseDescriptor(spec string) Schedule {
 			Dom:    all(dom),
 			Month:  all(months),
 			Dow:    all(dow),
+			Wy:     all(weeksOfYear),
 		}
 
 	case "@hourly":
@@ -310,6 +323,7 @@ func parseDescriptor(spec string) Schedule {
 			Dom:    all(dom),
 			Month:  all(months),
 			Dow:    all(dow),
+			Wy:     all(weeksOfYear),
 		}
 	}
 
