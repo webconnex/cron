@@ -5,6 +5,10 @@ import (
 	"time"
 )
 
+var testParser = NewParser(
+	Second | Minute | Hour | Dom | Month | DowOptional | WyOptional | Descriptor,
+)
+
 func TestActivation(t *testing.T) {
 	tests := []struct {
 		time, spec string
@@ -56,7 +60,7 @@ func TestActivation(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		sched, err := Parse(test.spec)
+		sched, err := testParser.Parse(test.spec)
 		if err != nil {
 			t.Error(err)
 			continue
@@ -150,10 +154,17 @@ func TestNext(t *testing.T) {
 		// Unsatisfiable
 		{"Mon Jul 9 23:35 2012", "0 0 0 30 Feb ?", ""},
 		{"Mon Jul 9 23:35 2012", "0 0 0 31 Apr ?", ""},
+
+		// Weeks of year
+		{"Mon Jul 9 00:00 2012", "0 0 0 * * MON 1/2", "Mon Jul 16 00:00 2012"},
+		{"Mon Jul 9 00:00 2012", "0 0 0 * * MON 2/2", "Mon Jul 23 00:00 2012"},
+		{"Mon Jul 16 00:00 2012", "0 0 0 * * MON 1/2", "Mon Jul 30 00:00 2012"},
+		{"Mon Jul 16 00:00 2012", "0 0 0 * * MON 2/2", "Mon Jul 23 00:00 2012"},
+		{"Wed Feb 10 16:02 2016", "0 0 0 * * WED 2/2", "Wed Feb 24 00:00 2016"},
 	}
 
 	for _, c := range runs {
-		sched, err := Parse(c.spec)
+		sched, err := testParser.Parse(c.spec)
 		if err != nil {
 			t.Error(err)
 			continue
@@ -174,7 +185,7 @@ func TestErrors(t *testing.T) {
 		"0 0 * * XYZ",
 	}
 	for _, spec := range invalidSpecs {
-		_, err := Parse(spec)
+		_, err := testParser.Parse(spec)
 		if err == nil {
 			t.Error("expected an error parsing: ", spec)
 		}
