@@ -8,19 +8,27 @@ type SpecSchedule struct {
 	Second, Minute, Hour, Dom, Month, Dow uint64
 }
 
+type feature uint
+
+const (
+	none   feature = 0
+	approx feature = 1 << iota
+)
+
 // bounds provides a range of acceptable values (plus a map of name to value).
 type bounds struct {
 	min, max uint
+	features feature
 	names    map[string]uint
 }
 
 // The bounds for each field.
 var (
-	seconds = bounds{0, 59, nil}
-	minutes = bounds{0, 59, nil}
-	hours   = bounds{0, 23, nil}
-	dom     = bounds{1, 31, nil}
-	months  = bounds{1, 12, map[string]uint{
+	seconds = bounds{0, 59, 0, nil}
+	minutes = bounds{0, 59, 0, nil}
+	hours   = bounds{0, 23, 0, nil}
+	dom     = bounds{1, 31, approx, nil}
+	months  = bounds{1, 12, 0, map[string]uint{
 		"jan": 1,
 		"feb": 2,
 		"mar": 3,
@@ -34,7 +42,7 @@ var (
 		"nov": 11,
 		"dec": 12,
 	}}
-	dow = bounds{0, 6, map[string]uint{
+	dow = bounds{0, 6, 0, map[string]uint{
 		"sun": 0,
 		"mon": 1,
 		"tue": 2,
@@ -46,6 +54,7 @@ var (
 )
 
 const (
+	approxBit = 1 << 62
 	// Set the top bit if a star was included in the expression.
 	starBit = 1 << 63
 )
@@ -148,9 +157,16 @@ WRAP:
 // restrictions are satisfied by the given time.
 func dayMatches(s *SpecSchedule, t time.Time) bool {
 	var (
-		domMatch bool = 1<<uint(t.Day())&s.Dom > 0
-		dowMatch bool = 1<<uint(t.Weekday())&s.Dow > 0
+		dom      = t.Day()
+		dow      = t.Weekday()
+		domMatch = 1<<uint(dom)&s.Dom > 0
+		dowMatch = 1<<uint(dow)&s.Dow > 0
 	)
+	if !domMatch && dom >= 28 && s.Dom&approxBit > 0 {
+		if ldom := lastDay(t); ldom < 31 && ldom == dom {
+			domMatch = getBits(uint(ldom+1), 31, 1)&s.Dom > 0
+		}
+	}
 	if s.Dom&starBit > 0 || s.Dow&starBit > 0 {
 		return domMatch && dowMatch
 	}

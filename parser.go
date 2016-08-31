@@ -20,6 +20,7 @@ const (
 	Dow
 	DowOptinal
 	Descriptor
+	ApproxDom
 )
 
 var places = []ParseOption{
@@ -99,6 +100,10 @@ func (p Parser) Parse(spec string) (_ Schedule, err error) {
 		Dow:    getField(fields[5], dow),
 	}
 
+	if p.options&ApproxDom > 0 {
+		schedule.Dom |= approxBit
+	}
+
 	return schedule, nil
 }
 
@@ -136,13 +141,19 @@ func Parse(spec string) (_ Schedule, err error) {
 // getField returns an Int with the bits set representing all of the times that
 // the field represents.  A "field" is a comma-separated list of "ranges".
 func getField(field string, r bounds) uint64 {
-	// list = range {"," range}
 	var bits uint64
-	ranges := strings.FieldsFunc(field, func(r rune) bool { return r == ',' })
-	for _, expr := range ranges {
+	if field[0] == '~' && r.features&approx > 0 {
+		bits |= approxBit
+		field = field[1:]
+	}
+	for _, expr := range strings.FieldsFunc(field, isComma) {
 		bits |= getRange(expr, r)
 	}
 	return bits
+}
+
+func isComma(r rune) bool {
+	return r == ','
 }
 
 // getRange returns the bits indicated by the given expression:
