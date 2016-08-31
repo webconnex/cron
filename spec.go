@@ -145,17 +145,17 @@ WRAP:
 	return t
 }
 
-// dayMatches returns true if the schedule's day-of-week and day-of-month
+// dayMatches returns true if the schedule's day-of-week, day-of-month and
 // week-of-year restrictions are satisfied by the given time.
 func dayMatches(s *SpecSchedule, t time.Time) bool {
-	_, wy := t.ISOWeek()
 	var (
-		domMatch bool = 1<<uint(t.Day())&s.Dom > 0
-		dowMatch bool = 1<<uint(t.Weekday())&s.Dow > 0
-		woyMatch bool = 1<<uint(wy)&s.Wy > 0
+		_, wy    = t.ISOWeek()
+		domMatch = 1<<uint(t.Day())&s.Dom > 0
+		dowMatch = 1<<uint(t.Weekday())&s.Dow > 0
+		woyMatch = 1<<uint(wy)&s.Wy > 0
 	)
 	if s.Dom&starBit > 0 || s.Dow&starBit > 0 {
 		return domMatch && dowMatch && woyMatch
 	}
-	return (domMatch || dowMatch) && woyMatch
+	return domMatch || (dowMatch && woyMatch)
 }
