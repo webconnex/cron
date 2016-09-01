@@ -6,7 +6,7 @@ import (
 )
 
 var testParser = NewParser(
-	Second | Minute | Hour | Dom | Month | DowOptional | WyOptional | Descriptor,
+	Second | Minute | Hour | Dom | Month | DowOptional | WyOptional | YearOptional | Descriptor,
 )
 
 func TestActivation(t *testing.T) {
@@ -151,16 +151,21 @@ func TestNext(t *testing.T) {
 		{"2012-11-04T00:00:00-0400", "0 0 3 * * ?", "2012-11-04T03:00:00-0500"},
 		{"2012-11-04T03:00:00-0500", "0 0 3 * * ?", "2012-11-05T03:00:00-0500"},
 
-		// Unsatisfiable
-		{"Mon Jul 9 23:35 2012", "0 0 0 30 Feb ?", ""},
-		{"Mon Jul 9 23:35 2012", "0 0 0 31 Apr ?", ""},
-
 		// Weeks of year
 		{"Mon Jul 9 00:00 2012", "0 0 0 * * MON 1/2", "Mon Jul 16 00:00 2012"},
 		{"Mon Jul 9 00:00 2012", "0 0 0 * * MON 2/2", "Mon Jul 23 00:00 2012"},
 		{"Mon Jul 16 00:00 2012", "0 0 0 * * MON 1/2", "Mon Jul 30 00:00 2012"},
 		{"Mon Jul 16 00:00 2012", "0 0 0 * * MON 2/2", "Mon Jul 23 00:00 2012"},
 		{"Wed Feb 10 16:02 2016", "0 0 0 * * WED 2/2", "Wed Feb 24 00:00 2016"},
+
+		// Years
+		{"Mon Jul 9 23:35 2012", "0 0 0 * Feb Mon * 2014", "Mon Feb 3 00:00 2014"},
+		{"Mon Jul 9 23:35 2012", "0 0 0 * Feb Mon * 2088", "Mon Feb 2 00:00 2088"},
+
+		// Unsatisfiable
+		{"Mon Jul 9 23:35 2012", "0 0 0 30 Feb ?", ""},
+		{"Mon Jul 9 23:35 2012", "0 0 0 31 Apr ?", ""},
+		{"Mon Jul 9 23:35 2012", "0 0 0 * Feb Mon * 2011", ""},
 	}
 
 	for _, c := range runs {

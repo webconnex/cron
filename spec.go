@@ -6,6 +6,7 @@ import "time"
 // traditional crontab specification. It is computed initially and stored as bit sets.
 type SpecSchedule struct {
 	Second, Minute, Hour, Dom, Month, Dow, Wy uint64
+	Year                                  []uint64
 }
 
 // bounds provides a range of acceptable values (plus a map of name to value).
@@ -44,6 +45,7 @@ var (
 		"sat": 6,
 	}}
 	weeksOfYear = bounds{1, 53, nil}
+	years = bounds{2000, 2099, nil}
 )
 
 const (
@@ -68,12 +70,24 @@ func (s *SpecSchedule) Next(t time.Time) time.Time {
 	// This flag indicates whether a field has been incremented.
 	added := false
 
-	// If no time is found within five years, return zero.
-	yearLimit := t.Year() + 5
+	// If no time is found within max years, return zero.
+	yearLimit := int(years.max)
 
 WRAP:
 	if t.Year() > yearLimit {
 		return time.Time{}
+	}
+
+	// Find the first applicable year.
+	if mhas(years, s.Year, t.Year()) == false {
+		if !added {
+			added = true
+			t = time.Date(t.Year(), 1, 1, 0, 0, 0, 0, t.Location())
+		}
+		t = t.AddDate(1, 0, 0)
+
+		// Always wrapp around after incrementing year.
+		goto WRAP
 	}
 
 	// Find the first applicable month.

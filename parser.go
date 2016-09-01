@@ -21,6 +21,8 @@ const (
 	DowOptional
 	Wy
 	WyOptional
+	Year
+	YearOptional
 	Descriptor
 )
 
@@ -32,12 +34,14 @@ var places = []ParseOption{
 	Month,
 	Dow,
 	Wy,
+	Year,
 }
 
 var defaults = []string{
 	"0",
 	"0",
 	"0",
+	"*",
 	"*",
 	"*",
 	"*",
@@ -57,6 +61,10 @@ func NewParser(options ParseOption) Parser {
 	}
 	if options&WyOptional > 0 {
 		options |= Wy
+		optionals++
+	}
+	if options&YearOptional > 0 {
+		options |= Year
 		optionals++
 	}
 	return Parser{options, optionals}
@@ -106,6 +114,7 @@ func (p Parser) Parse(spec string) (_ Schedule, err error) {
 		Month:  getField(fields[4], months),
 		Dow:    getField(fields[5], dow),
 		Wy:     getField(fields[6], weeksOfYear),
+		Year:   getFieldM(fields[7], years),
 	}
 
 	return schedule, nil
@@ -157,19 +166,45 @@ func getField(field string, r bounds) uint64 {
 // getRange returns the bits indicated by the given expression:
 //   number | number "-" number [ "/" number ]
 func getRange(expr string, r bounds) uint64 {
+	start, end, step, flags := parseRange(expr, r)
+	return getBits(start, end, step) | flags
+}
 
+// getFieldM returns an slice with bits set representing all of the times that
+// the field represents.  A "field" is a comma-separated list of "ranges".
+func getFieldM(field string, r bounds) []uint64 {
+	size := msize(r)
+	mbits := make([]uint64, size)
+	ranges := strings.FieldsFunc(field, func(r rune) bool { return r == ',' })
+	for _, expr := range ranges {
+		for i, bits := range getRangeM(expr, r) {
+			mbits[i] |= bits
+		}
+	}
+	return mbits
+}
+
+// getRangeM returns multi bits indicated by the given expression:
+//   number | number "-" number [ "/" number ]
+func getRangeM(expr string, r bounds) []uint64 {
+	start, end, step, flags := parseRange(expr, r)
+	mbits := getMultiBits(r, start, end, step)
+	mbits[0] |= flags
+	return mbits
+}
+
+// parseRange returns start, stop, step, and flags for the given expression
+func parseRange(expr string, r bounds) (start, end, step uint, flags uint64) {
 	var (
-		start, end, step uint
-		rangeAndStep     = strings.Split(expr, "/")
-		lowAndHigh       = strings.Split(rangeAndStep[0], "-")
-		singleDigit      = len(lowAndHigh) == 1
+		rangeAndStep = strings.Split(expr, "/")
+		lowAndHigh   = strings.Split(rangeAndStep[0], "-")
+		singleDigit  = len(lowAndHigh) == 1
 	)
 
-	var extra uint64
 	if lowAndHigh[0] == "*" || lowAndHigh[0] == "?" {
 		start = r.min
 		end = r.max
-		extra = starBit
+		flags = starBit
 	} else {
 		start = parseIntOrName(lowAndHigh[0], r.names)
 		switch len(lowAndHigh) {
@@ -206,7 +241,7 @@ func getRange(expr string, r bounds) uint64 {
 		log.Panicf("Beginning of range (%d) beyond end of range (%d): %s", start, end, expr)
 	}
 
-	return getBits(start, end, step) | extra
+	return
 }
 
 // parseIntOrName returns the (possibly-named) integer contained in expr.
@@ -253,6 +288,57 @@ func all(r bounds) uint64 {
 	return getBits(r.min, r.max, 1) | starBit
 }
 
+var bitBoundary uint = 60
+
+// getBitsDouble sets all bits in the range [min, max], modulo the given step size.
+func getMultiBits(r bounds, min, max, step uint) []uint64 {
+	min -= r.min
+	max -= r.min
+	mbits := make([]uint64, msize(r))
+	// If step is 1, use shifts.
+	if step == 1 {
+		start := min % bitBoundary
+		end := max % bitBoundary
+		l := max / bitBoundary
+		for n := min / bitBoundary; n < l; n++ {
+			mbits[n] = ^(math.MaxUint64 << bitBoundary) & (math.MaxUint64 << start)
+			start = 0
+		}
+		mbits[l] = ^(math.MaxUint64 << (end + 1)) & (math.MaxUint64 << start)
+	} else {
+		for i := min; i <= max; i += step {
+			n := i / bitBoundary
+			sub := (bitBoundary * n)
+			mbits[n] |= 1 << (i - sub)
+		}
+	}
+	return mbits
+}
+
+// mall returns all multi bits within the given bounds.  (plus the star bit)
+func mall(r bounds) []uint64 {
+	mbits := getMultiBits(r, r.min, r.max, 1)
+	mbits[0] |= starBit
+	return mbits
+}
+
+// msize returns the slice size of multi bits with the given bounds
+func msize(r bounds) uint {
+	return (r.max-r.min)/bitBoundary + 1
+}
+
+// mhas checks whether a given number exists within the multi bits
+func mhas(r bounds, mbits []uint64, number int) bool {
+	number -= int(r.min)
+	bb := int(bitBoundary)
+	index := number / bb
+	if index >= len(mbits) {
+		return false
+	}
+	number -= bb * index
+	return 1<<uint(number)&mbits[index] > 0
+}
+
 // parseDescriptor returns a pre-defined schedule for the expression, or panics
 // if none matches.
 func parseDescriptor(spec string) Schedule {
@@ -266,6 +352,7 @@ func parseDescriptor(spec string) Schedule {
 			Month:  1 << months.min,
 			Dow:    all(dow),
 			Wy:     all(weeksOfYear),
+			Year:   mall(years),
 		}
 
 	case "@monthly":
@@ -277,6 +364,7 @@ func parseDescriptor(spec string) Schedule {
 			Month:  all(months),
 			Dow:    all(dow),
 			Wy:     all(weeksOfYear),
+			Year:   mall(years),
 		}
 
 	case "@weekly":
@@ -288,6 +376,7 @@ func parseDescriptor(spec string) Schedule {
 			Month:  all(months),
 			Dow:    1 << dow.min,
 			Wy:     all(weeksOfYear),
+			Year:   mall(years),
 		}
 
 	case "@daily", "@midnight":
@@ -299,6 +388,7 @@ func parseDescriptor(spec string) Schedule {
 			Month:  all(months),
 			Dow:    all(dow),
 			Wy:     all(weeksOfYear),
+			Year:   mall(years),
 		}
 
 	case "@hourly":
@@ -310,6 +400,7 @@ func parseDescriptor(spec string) Schedule {
 			Month:  all(months),
 			Dow:    all(dow),
 			Wy:     all(weeksOfYear),
+			Year:   mall(years),
 		}
 	}
 
